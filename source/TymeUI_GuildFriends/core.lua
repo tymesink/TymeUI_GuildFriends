@@ -236,27 +236,28 @@ end
 
 
 function f:GUILD_ROSTER_UPDATE()
-	for k, v in next, guildEntries do del(v) guildEntries[k]=nil end
-	local r,g,b = unpack(colors.officerNote)
-	local officerColor = ("\124cff%.2x%.2x%.2x"):format( r*255, g*255, b*255 )
-	local totalMembers, _, numOnlineAndMobileMembers = GetNumGuildMembers()
-	local scanTotal = GetGuildRosterShowOffline() and totalMembers or numOnlineAndMobileMembers--Attempt CPU saving, if "show offline" is unchecked, we can reliably scan only online members instead of whole roster
-	for i=1, scanTotal do
-		local name, rank, rankIndex, level, class, zone, note, offnote, connected, status, engClass, achPoints, achRank, isMobile = GetGuildRosterInfo(i)
-		if not name then break end
-		if connected or isMobile then
-		name = Ambiguate(name, "none")
-		local notes = note ~= "" and (offnote == "" and note or ("%s |cffffcc00-|r %s%s"):format(note, officerColor, offnote)) or
-			offnote == "" and "|cffffcc00-" or officerColor..offnote
-			if status == 0 then status = ""
-			elseif status == 1 then status = CHAT_FLAG_AFK
-			elseif status == 2 then status = CHAT_FLAG_DND
-			end
-		if(isMobile and not connected) then zone = REMOTE_CHAT; end;--They are mobile only.
-		guildEntries[#guildEntries+1] = new( L[class] or "", name or "", level or 0, zone or UNKNOWN, notes, isMobile and "<Mobile>" or status or "", rankIndex or 0, rank or 0, i, isMobile )
-	end end
-	UpdateGuildBlockText()
-	if isGuild and f:IsShown() then UpdateTablet() end
+    for k, v in next, guildEntries do del(v) guildEntries[k] = nil end
+    local r, g, b = unpack(colors.officerNote)
+    local officerColor = ("\124cff%.2x%.2x%.2x"):format(r * 255, g * 255, b * 255)
+    local totalMembers, _, numOnlineAndMobileMembers = GetNumGuildMembers()
+    numOnlineAndMobileMembers = numOnlineAndMobileMembers or 0 -- Ensure numOnlineAndMobileMembers is not nil
+    local scanTotal = GetGuildRosterShowOffline() and totalMembers or numOnlineAndMobileMembers
+    scanTotal = scanTotal > 0 and scanTotal or 0
+    for i = 1, scanTotal do
+        local name, rank, rankIndex, level, class, zone, note, offnote, connected, status, engClass, achPoints, achRank, isMobile = GetGuildRosterInfo(i)
+        if not name then break end
+        if connected or isMobile then
+            name = Ambiguate(name, "none")
+            local notes = note ~= "" and (offnote == "" and note or ("%s |cffffcc00-|r %s%s"):format(note, officerColor, offnote)) or
+                offnote == "" and "|cffffcc00-" or officerColor .. offnote
+            if status == 0 then status = ""
+            elseif status == 1 then status = CHAT_FLAG_AFK
+            elseif status == 2 then status = CHAT_FLAG_DND
+            end
+            if (isMobile and not connected) then zone = REMOTE_CHAT end -- They are mobile only.
+            guildEntries[#guildEntries + 1] = new(L[class] or "", name or "", level or 0, zone or UNKNOWN, notes, isMobile and "<Mobile>" or status or "", rankIndex or 0, rank or 0, i, isMobile)
+        end
+    end
 end
 
 function f:PLAYER_GUILD_UPDATE(unit)
