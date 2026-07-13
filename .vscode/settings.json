@@ -257,7 +257,10 @@
         "ToggleFriendsFrame",
         "BATTLENET_UNAVAILABLE",
         "FriendsFrameAddFriendButton",
-        "DropDownList1"
+        "DropDownList1",
+        "RAID_CLASS_COLORS",
+        "LOCALIZED_CLASS_NAMES_MALE",
+        "LOCALIZED_CLASS_NAMES_FEMALE"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "Lua.runtime.builtin": {
@@ -272,6 +275,6 @@
         "utf8": "disable"
     },
     "Lua.workspace.library": [
-        "~\\.vscode\\extensions\\ketho.wow-api-0.17.6\\Annotations"
+        "~\\.vscode\\extensions\\ketho.wow-api-0.22.3\\Annotations\\Core"
     ]
 }

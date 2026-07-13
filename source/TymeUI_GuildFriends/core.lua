@@ -112,11 +112,18 @@ local backdrop =  {
 	edgeSize=16, tile = false, tileSize=0,
 	insets = { left=3, right=3, top=3, bottom=3 } }
 
-local wipe, next, GetGuildRosterInfo, GetGuildRosterShowOffline, GetFriendInfo, IsInGuild, GuildRoster, ShowFriends, CLASS_BUTTONS, GetDifficultyColor, Ambiguate =
-	wipe, next, GetGuildRosterInfo, GetGuildRosterShowOffline, C_FriendList and C_FriendList.GetFriendInfoByIndex or GetFriendInfo, IsInGuild, GuildRoster, ShowFriends, CLASS_ICON_TCOORDS, GetQuestDifficultyColor, Ambiguate
+local wipe, next, GetGuildRosterInfo, GetFriendInfo, IsInGuild, GuildRoster, ShowFriends, CLASS_BUTTONS, GetDifficultyColor, Ambiguate =
+	wipe, next, GetGuildRosterInfo, C_FriendList and C_FriendList.GetFriendInfoByIndex or GetFriendInfo, IsInGuild, GuildRoster, ShowFriends, CLASS_ICON_TCOORDS, GetQuestDifficultyColor, Ambiguate
 
 --Not renamed in legion yet but might be
 local BNGetNumFriends = BNGetNumFriends
+
+--IsAddOnLoaded/LoadAddOn/GetAddOnMetadata/RemoveFriend pulled from global scope in 11.0.2
+local IsAddOnLoaded, LoadAddOn, GetAddOnMetadata, RemoveFriend =
+	C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded,
+	C_AddOns and C_AddOns.LoadAddOn or LoadAddOn,
+	C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata,
+	C_FriendList and C_FriendList.RemoveFriend or RemoveFriend
 
 --Begin Compat wrappers for retail and classic to access same functions and expect same returns
 --Retail kind of has these for now, but won't forever, and classic is not expected to make same API restructuring, so this ugly mess is probably required forever
@@ -239,10 +246,8 @@ function f:GUILD_ROSTER_UPDATE()
     for k, v in next, guildEntries do del(v) guildEntries[k] = nil end
     local r, g, b = unpack(colors.officerNote)
     local officerColor = ("\124cff%.2x%.2x%.2x"):format(r * 255, g * 255, b * 255)
-    local totalMembers, _, numOnlineAndMobileMembers = GetNumGuildMembers()
-    numOnlineAndMobileMembers = numOnlineAndMobileMembers or 0 -- Ensure numOnlineAndMobileMembers is not nil
-    local scanTotal = GetGuildRosterShowOffline() and totalMembers or numOnlineAndMobileMembers
-    scanTotal = scanTotal > 0 and scanTotal or 0
+    -- GetNumGuildMembers() lost its 3rd (online-only) return value in patch 10.2.0; always scan the full roster
+    local scanTotal = GetNumGuildMembers() or 0
     for i = 1, scanTotal do
         local name, rank, rankIndex, level, class, zone, note, offnote, connected, status, engClass, achPoints, achRank, isMobile = GetGuildRosterInfo(i)
         if not name then break end
@@ -258,6 +263,8 @@ function f:GUILD_ROSTER_UPDATE()
             guildEntries[#guildEntries + 1] = new(L[class] or "", name or "", level or 0, zone or UNKNOWN, notes, isMobile and "<Mobile>" or status or "", rankIndex or 0, rank or 0, i, isMobile)
         end
     end
+    UpdateGuildBlockText()
+    if isGuild and f:IsShown() then UpdateTablet() end
 end
 
 function f:PLAYER_GUILD_UPDATE(unit)
@@ -358,21 +365,22 @@ local function MOTD_OnClose(edit)
 end
 
 local function LoadBlizzardAddons()
-	if IsAddOnLoaded"Blizzard_GuildUI" then return end
+	if IsAddOnLoaded"Blizzard_Communities" then return end
 	LoadAddOn"Blizzard_Calendar"
-	LoadAddOn"Blizzard_GuildUI"
+	LoadAddOn"Blizzard_Communities"
 end
 
 local function EditMOTD()
 	f:Hide()
 	LoadBlizzardAddons()
-	local edit = GuildTextEditFrame
+	local edit = CommunitiesGuildTextEditFrame
 	edit.prevPoint = { edit:GetPoint() }
 	edit.prevParent = edit:GetParent()
 	edit:ClearAllPoints()
 	edit:SetParent(UIParent)
 	edit:SetPoint("CENTER", 0, 180)
-	GuildTextEditFrame_Show"motd"
+	CommunitiesGuildTextEditFrame_SetType(edit, "motd")
+	if not edit:IsShown() then ToggleFrame(edit) end
 	edit:HookScript("OnHide", MOTD_OnClose)
 end
 
@@ -1391,8 +1399,10 @@ f.GuildBlock = ldb:NewDataObject(ldb_name_guild, {
 	OnClick = function(self, button)
 		if button == "LeftButton" then
 			ToggleGuildFrame()
-			if GuildFrame and GuildFrame:IsShown() then
-				GuildFrameTab2:Click()
+			if CommunitiesFrame and CommunitiesFrame:IsShown() then
+				local guildClubId = C_Club and C_Club.GetGuildClubId and C_Club.GetGuildClubId()
+				if guildClubId then CommunitiesFrame:SelectClub(guildClubId) end
+				CommunitiesFrame:SetDisplayMode(COMMUNITIES_FRAME_DISPLAY_MODES.ROSTER)
 				f.GuildBlock.OnLeave(self)
 			else	f.GuildBlock.OnEnter(self) end
 		elseif button == "RightButton" then
